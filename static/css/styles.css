@@ -235,7 +235,7 @@ select.full { width: 100%; margin-bottom: 2px; }
 .chip button { background: none; border: none; color: inherit; cursor: pointer; padding: 0; flex: 0 0 auto; }
 
 /* ── cards & KPIs ───────────────────────────────────────────────────── */
-.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 14px; }
 .kpi {
   background: var(--panel); border: 1px solid var(--border-soft);
   border-radius: var(--radius); padding: 12px 14px;
@@ -396,6 +396,8 @@ select.full { width: 100%; margin-bottom: 2px; }
   }
   .main { padding: 14px 14px 40px; }
   .drawer { top: 0; }
-  .kpis { grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); }
+  .kpis { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  .kpi .v { font-size: 20px; }
+  .small-kpis .kpi .v { font-size: 16px; }
   .merge-grid { grid-template-columns: 1fr; }
 }

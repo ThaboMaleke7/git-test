@@ -204,6 +204,7 @@
   }
 
   async function loadRefs(refresh) {
+    if (!state.repoId) return null;
     const res = await api(`/api/repos/${state.repoId}/refs?refresh=${refresh ? 1 : 0}`);
     const opts = ["HEAD"];
     (res.branches || []).forEach((b) => opts.push(b.name));
@@ -1076,6 +1077,7 @@
 
   function wireEvents() {
     $("repoSelect").addEventListener("change", (e) => {
+      if (!e.target.value) return;
       selectRepo(e.target.value).catch((err) => toast(err.message, "error"));
     });
     $("applyRefBtn").addEventListener("click", () => applyRef().catch((e) => toast(e.message, "error")));
