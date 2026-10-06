@@ -1,7 +1,5 @@
 # RAT — Repo Analysis Tool
 
-**COMS3011A practical test submission.**
-
 RAT is a web dashboard that measures the evolution of git repositories. It ingests a
 repository either as a **zip archive** (containing its `.git` directory) or by
 **cloning a remote URL**, then computes file, directory, repository, commit-set and
@@ -205,6 +203,26 @@ aggregation, modification frequency, churn rate, ownership, time-range and manua
 commit sets, a non-HEAD reference commit, author views, manual author merging and
 zip ingestion end-to-end.
 
+### Validation against the provided reference data
+
+The three repositories distributed in `repo-references.zip` (cJSON, git, redis)
+were used to validate the engine: each repository was queried at its exact
+reference commit and compared row-by-row with the reference CSV.
+
+| Repository | Reference commit | Commits | Authors | Files | Directories |
+| --- | --- | --- | --- | --- | --- |
+| cJSON | `6d9f2443ab07` | 955 | 107 / 107 | 240 / 240 | 45 / 45 |
+| git | `5a7d1e8045ce` | 61,101 | 2,498 / 2,498 | 6,410 / 6,410 | 286 / 286 |
+| redis | `b540ca49cba8` | 11,874 | 1,034 / 1,034 | 2,856 / 2,856 | 202 / 202 |
+
+Every non-zero value matches the reference exactly — repository totals, per-author
+totals (including `ownership`), the file and directory tables (including
+`modification_frequency` and `churn_rate`), and per-file author ownership. The only
+differences are all-zero placeholder rows: the reference keeps a row for every path
+whose only appearance in `git --numstat` is a pure rename (`0` added / `0` removed),
+and for commits that changed no lines. Those rows carry no metric values, consistent
+with §5 (“a pure rename … does not alter any metric”).
+
 ## 8. Known limitations
 
 * Private repositories need credentials configured for `git` on the machine
@@ -213,3 +231,7 @@ zip ingestion end-to-end.
   `.git` *file* are rejected with an explanatory message.
 * Line metrics are exactly what `git --numstat` reports; binary files and pure
   renames have no line counts, as per the specification.
+
+## 9. AI Declaration
+
+This project was done with the help of Qoder, an artificial intelligence model with the guidance of a human.
