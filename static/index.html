@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RAT · Repo Analysis Tool</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+<link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">RAT</span>
+    <span class="brand-sub">Repo Analysis Tool</span>
+  </div>
+
+  <div class="top-controls">
+    <label class="ctl">
+      <span class="ctl-label">Repository</span>
+      <select id="repoSelect" title="Active repository"></select>
+    </label>
+
+    <label class="ctl">
+      <span class="ctl-label">Reference commit</span>
+      <input id="refInput" list="refOptions" spellcheck="false" placeholder="HEAD" title="Branch, tag or commit hash (metrics are computed for commits reachable from this reference)">
+      <datalist id="refOptions"></datalist>
+    </label>
+
+    <button id="applyRefBtn" class="btn" title="Reload metrics for the reference">Apply</button>
+    <button id="addRepoBtn" class="btn primary">＋ Add repository</button>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- ─────────────────────────── sidebar filters ─────────────────────────── -->
+  <aside class="sidebar" id="sidebar">
+    <section class="panel">
+      <h3>Commit set <span class="hint" title="H is the subset of non-merge commits reachable from the reference commit">H</span></h3>
+      <div class="segmented" id="commitModeSeg">
+        <button data-mode="all" class="active">All</button>
+        <button data-mode="range">Time range</button>
+        <button data-mode="list">Selected commits</button>
+      </div>
+
+      <div id="rangePane" class="pane hidden">
+        <label class="stack">From (inclusive)
+          <input type="datetime-local" id="fromInput" step="1">
+        </label>
+        <label class="stack">To (inclusive)
+          <input type="datetime-local" id="toInput" step="1">
+        </label>
+        <div class="quick-row">
+          <button class="btn tiny" data-days="30">30d</button>
+          <button class="btn tiny" data-days="90">90d</button>
+          <button class="btn tiny" data-days="365">1y</button>
+          <button class="btn tiny" data-days="1825">5y</button>
+          <button class="btn tiny" data-days="0">clear</button>
+        </div>
+      </div>
+
+      <div id="listPane" class="pane hidden">
+        <input id="commitSearch" class="text-input" placeholder="search hash / message / author…" spellcheck="false">
+        <div id="commitPicker" class="scroll-list"></div>
+        <div class="row between">
+          <span id="pickedCount" class="muted small">0 commits selected</span>
+          <button id="clearPicked" class="btn tiny">Clear</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h3>Author</h3>
+      <select id="authorSelect" class="full"></select>
+      <button id="mergeAuthorsBtn" class="btn full subtle" title="Merge identities (e.g. multiple emails of the same developer)">⇄ Merge authors…</button>
+      <div id="mergeInfo" class="muted small"></div>
+    </section>
+
+    <section class="panel">
+      <h3>File / directory</h3>
+      <input id="pathInput" class="text-input" placeholder="filter by path…" spellcheck="false" list="pathOptions">
+      <datalist id="pathOptions"></datalist>
+      <div class="quick-row">
+        <button id="detailBtn" class="btn tiny">Show detail</button>
+        <button id="clearPathBtn" class="btn tiny">Clear</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h3>Repository info</h3>
+      <div id="repoInfo" class="kv"></div>
+    </section>
+  </aside>
+
+  <!-- ─────────────────────────────── main ──────────────────────────────── -->
+  <main class="main">
+    <div id="emptyState" class="empty">
+      <div class="empty-inner">
+        <div class="empty-icon">📊</div>
+        <h2>No repository loaded</h2>
+        <p>Add a repository to analyse: upload a <b>zip archive</b> containing its <code>.git</code>
+           directory, or <b>clone a remote URL</b>.</p>
+        <button id="emptyAddBtn" class="btn primary">＋ Add repository</button>
+      </div>
+    </div>
+
+    <div id="workspace" class="workspace hidden">
+      <nav class="tabs" id="tabs">
+        <button data-tab="overview" class="active">Overview</button>
+        <button data-tab="files">Files</button>
+        <button data-tab="directories">Directories</button>
+        <button data-tab="authors">Authors</button>
+        <button data-tab="commitset">Commit set</button>
+        <div class="tab-spacer"></div>
+        <div id="filterChips" class="chips"></div>
+      </nav>
+
+      <!-- overview -->
+      <section id="tab-overview" class="tab-pane active">
+        <div class="kpis" id="kpis"></div>
+        <div class="chart-grid">
+          <div class="card span-2">
+            <div class="card-head"><h3>Churn over time</h3><span class="muted small" id="churnBucketNote"></span></div>
+            <div class="chart" id="chartChurn"></div>
+            <div class="legend">
+              <span class="legend-item"><i class="swatch added"></i>lines added</span>
+              <span class="legend-item"><i class="swatch removed"></i>lines removed</span>
+            </div>
+          </div>
+          <div class="card span-2">
+            <div class="card-head"><h3>Repository size (net lines)</h3><span class="muted small">cumulative growth across the commit set</span></div>
+            <div class="chart" id="chartGrowth"></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h3>Top authors by churn</h3></div>
+            <div id="topAuthors" class="bars"></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h3>Top files by churn</h3></div>
+            <div id="topFiles" class="bars"></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h3>Top directories by churn</h3></div>
+            <div id="topDirs" class="bars"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- files -->
+      <section id="tab-files" class="tab-pane">
+        <div class="toolbar">
+          <input id="filesSearch" class="text-input" placeholder="filter files…" spellcheck="false">
+          <span class="muted small" id="filesCount"></span>
+          <div class="tab-spacer"></div>
+          <button id="filesExport" class="btn tiny">Export CSV</button>
+        </div>
+        <div class="table-wrap"><table class="data-table" id="filesTable"></table></div>
+        <div class="row center"><button id="filesMore" class="btn tiny hidden">Show more</button></div>
+      </section>
+
+      <!-- directories -->
+      <section id="tab-directories" class="tab-pane">
+        <div class="toolbar">
+          <input id="dirsSearch" class="text-input" placeholder="filter directories…" spellcheck="false">
+          <span class="muted small" id="dirsCount"></span>
+          <div class="tab-spacer"></div>
+          <button id="dirsExport" class="btn tiny">Export CSV</button>
+        </div>
+        <div class="table-wrap"><table class="data-table" id="dirsTable"></table></div>
+        <div class="row center"><button id="dirsMore" class="btn tiny hidden">Show more</button></div>
+      </section>
+
+      <!-- authors -->
+      <section id="tab-authors" class="tab-pane">
+        <div class="toolbar">
+          <input id="authorsSearch" class="text-input" placeholder="filter authors…" spellcheck="false">
+          <span class="muted small" id="authorsCount"></span>
+          <div class="tab-spacer"></div>
+          <button id="authorsExport" class="btn tiny">Export CSV</button>
+        </div>
+        <div class="table-wrap"><table class="data-table" id="authorsTable"></table></div>
+      </section>
+
+      <!-- commit set -->
+      <section id="tab-commitset" class="tab-pane">
+        <div class="kpis small-kpis" id="commitSetKpis"></div>
+        <div class="card">
+          <div class="card-head"><h3>Commits in the repository</h3>
+            <span class="muted small">tick commits to use them as the commit set (switches to “Selected commits”)</span></div>
+          <div class="toolbar">
+            <input id="csSearch" class="text-input" placeholder="search hash / message / author…" spellcheck="false">
+            <button id="csAddRange" class="btn tiny" title="Select every listed commit inside the time range above">＋ add current range</button>
+            <button id="csAddAll" class="btn tiny">＋ add all listed</button>
+            <button id="csClear" class="btn tiny">Clear selection</button>
+            <div class="tab-spacer"></div>
+            <span class="muted small" id="csCount"></span>
+          </div>
+          <div class="table-wrap tall"><table class="data-table" id="csTable"></table></div>
+          <div class="row center"><button id="csMore" class="btn tiny hidden">Load more</button></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- ────────────────────────────── drawer ─────────────────────────────── -->
+  <aside class="drawer hidden" id="drawer">
+    <div class="drawer-head">
+      <div>
+        <div class="drawer-kind" id="drawerKind">file</div>
+        <h3 id="drawerTitle">—</h3>
+      </div>
+      <button class="btn tiny" id="drawerClose">✕</button>
+    </div>
+    <div class="drawer-body">
+      <div class="kpis small-kpis" id="drawerKpis"></div>
+      <div class="card">
+        <div class="card-head"><h3>Ownership</h3><span class="muted small">share of churn by author (O<sub>H</sub>)</span></div>
+        <div id="drawerDonut" class="donut-wrap"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>Authors</h3></div>
+        <table class="data-table" id="drawerOwners"></table>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>Activity</h3></div>
+        <div class="chart small" id="drawerChart"></div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<!-- ─────────────────────────── add repo modal ─────────────────────────── -->
+<div class="modal-backdrop hidden" id="addModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Add repository</h3>
+      <button class="btn tiny" data-close="addModal">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="segmented" id="addModeSeg">
+        <button data-addmode="clone" class="active">Clone remote URL</button>
+        <button data-addmode="zip">Upload zip</button>
+      </div>
+
+      <div id="addClonePane" class="pane">
+        <label class="stack">Repository URL
+          <input id="cloneUrl" class="text-input" placeholder="https://github.com/owner/repo.git" spellcheck="false">
+        </label>
+        <label class="stack">Display name <span class="muted small">(optional)</span>
+          <input id="cloneName" class="text-input" placeholder="repo">
+        </label>
+        <p class="muted small">The repository is <b>deeply cloned</b> (full history). Large repositories can take a while.</p>
+      </div>
+
+      <div id="addZipPane" class="pane hidden">
+        <label class="dropzone" id="zipDrop">
+          <input type="file" id="zipFile" accept=".zip" hidden>
+          <div class="dz-inner">
+            <b>Drop a .zip here</b> or click to choose<br>
+            <span class="muted small">the archive must contain the repository folder with its <code>.git</code> directory (or file)</span>
+          </div>
+        </label>
+        <div id="zipPicked" class="muted small"></div>
+      </div>
+
+      <div id="jobBox" class="job-box hidden">
+        <div class="progress"><div class="progress-fill" id="jobFill"></div></div>
+        <div class="job-msg" id="jobMsg">starting…</div>
+        <div class="job-error hidden" id="jobError"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close="addModal">Cancel</button>
+      <button class="btn primary" id="addGo">Start</button>
+    </div>
+  </div>
+</div>
+
+<!-- ────────────────────────── merge authors modal ──────────────────────── -->
+<div class="modal-backdrop hidden" id="mergeModal">
+  <div class="modal wide">
+    <div class="modal-head">
+      <h3>Merge authors</h3>
+      <button class="btn tiny" data-close="mergeModal">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="muted small">Select two or more identities that belong to the same developer, then choose which
+        identity they are merged into. A repository <code>.mailmap</code> is applied automatically by git;
+        this tool adds manual merges on top.</p>
+      <div class="merge-grid">
+        <div class="table-wrap tall">
+          <table class="data-table" id="mergeTable"></table>
+        </div>
+        <div class="merge-side">
+          <label class="stack">Merge selected into
+            <select id="mergeTarget" class="full"></select>
+          </label>
+          <button id="mergeApply" class="btn primary full">Apply merge</button>
+          <button id="mergeClear" class="btn full subtle">Clear all manual merges</button>
+          <div id="mergeStatus" class="muted small"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close="mergeModal">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="toasts" class="toasts"></div>
+<div id="overlay" class="overlay hidden"><div class="spinner"></div><div id="overlayMsg">computing metrics…</div></div>
+
+<script src="/static/js/charts.js"></script>
+<script src="/static/js/app.js"></script>
+</body>
+</html>

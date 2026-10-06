@@ -1,0 +1,13 @@
+# runtime data: uploaded/cloned repositories, registry, parse caches
+/data/
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# editors / OS
+.idea/
+.vscode/
+.DS_Store
+*.swp
