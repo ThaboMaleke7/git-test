@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>RAT · Repo Analysis Tool</title>
+<script>
+/* apply the saved theme before first paint to avoid a flash */
+try { if (localStorage.getItem("rat-theme") === "light") document.documentElement.dataset.theme = "light"; } catch (e) {}
+</script>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
 <link rel="stylesheet" href="/static/css/styles.css">
 </head>
@@ -28,6 +32,7 @@
     </label>
 
     <button id="applyRefBtn" class="btn" title="Reload metrics for the reference">Apply</button>
+    <button id="themeBtn" class="btn" title="Switch between dark and light theme">☀ Light</button>
     <button id="addRepoBtn" class="btn primary">＋ Add repository</button>
   </div>
 </header>

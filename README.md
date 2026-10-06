@@ -94,6 +94,11 @@ per-author ownership breakdown and an activity timeline.
   *Show more* paging and **CSV export** of the filtered rows.
 * Commit set: the commit list with |H| and the commit-set totals.
 
+### Theme
+The **☀ Light / ☾ Dark** button in the top bar switches the whole dashboard
+between a dark and a light theme. The choice is remembered in `localStorage`
+and every chart re-colours instantly.
+
 ## 5. Metric definitions (as implemented)
 
 Notation: `H` = commit set (subset of the non-merge commits reachable from the

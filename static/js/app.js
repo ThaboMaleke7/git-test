@@ -1059,11 +1059,29 @@
     });
   }
 
+  /* ── theme ────────────────────────────────────────────────────── */
+
+  function applyTheme(theme) {
+    if (theme === "light") {
+      document.documentElement.dataset.theme = "light";
+    } else {
+      theme = "dark";
+      delete document.documentElement.dataset.theme;
+    }
+    try { localStorage.setItem("rat-theme", theme); } catch (e) { /* private mode */ }
+    const btn = $("themeBtn");
+    if (btn) btn.textContent = theme === "light" ? "☾ Dark" : "☀ Light";
+    if (window.Charts && Charts.redrawAll) Charts.redrawAll();
+  }
+
   function wireEvents() {
     $("repoSelect").addEventListener("change", (e) => {
       selectRepo(e.target.value).catch((err) => toast(err.message, "error"));
     });
     $("applyRefBtn").addEventListener("click", () => applyRef().catch((e) => toast(e.message, "error")));
+    $("themeBtn").addEventListener("click", () => {
+      applyTheme(document.documentElement.dataset.theme === "light" ? "dark" : "light");
+    });
     $("refInput").addEventListener("keydown", (e) => {
       if (e.key === "Enter") applyRef().catch((err) => toast(err.message, "error"));
     });
@@ -1290,6 +1308,9 @@
 
   async function boot() {
     wireEvents();
+    let savedTheme = null;
+    try { savedTheme = localStorage.getItem("rat-theme"); } catch (e) { /* ignore */ }
+    applyTheme(savedTheme === "light" ? "light" : "dark");
     setAddMode("clone");
     setMode("all");
     try {

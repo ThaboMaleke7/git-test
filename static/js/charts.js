@@ -8,14 +8,29 @@
   "use strict";
 
   var NS = "http://www.w3.org/2000/svg";
-  var COL = {
-    added: "#3fb950",
-    removed: "#f85149",
-    accent: "#4f8cff",
-    grid: "#232f3e",
-    muted: "#8b98a5",
-    zero: "#3d4a5c"
-  };
+
+  /* colours come from CSS custom properties so switching between the light
+     and dark theme restyles every chart without a page reload */
+  var colCache = null;
+  function cssVar(name, fallback) {
+    var v = getComputedStyle(document.documentElement).getPropertyValue(name);
+    return (v && v.trim()) || fallback;
+  }
+  function COL() {
+    if (!colCache) {
+      colCache = {
+        added: cssVar("--chart-added", "#3fb950"),
+        removed: cssVar("--chart-removed", "#f85149"),
+        accent: cssVar("--chart-accent", "#4f8cff"),
+        grid: cssVar("--chart-grid", "#232f3e"),
+        muted: cssVar("--chart-muted", "#8b98a5"),
+        zero: cssVar("--chart-zero", "#3d4a5c"),
+        text: cssVar("--chart-text", "#e6edf3"),
+        track: cssVar("--donut-track", "#1b2430")
+      };
+    }
+    return colCache;
+  }
   var PALETTE = ["#4f8cff", "#3fb950", "#d29922", "#f85149", "#a371f7",
                  "#39c5cf", "#db61a2", "#e0723f"];
   var OTHER_COLOR = "#6e7681";
@@ -34,12 +49,18 @@
 
   function remember(el, fn) {
     redraws.set(el, fn);
+    colCache = null;
     fn();
   }
 
   function redraw(el) {
     var fn = redraws.get(el);
-    if (fn) fn();
+    if (fn) { colCache = null; fn(); }
+  }
+
+  function redrawAll() {
+    colCache = null;
+    redraws.forEach(function (fn) { fn(); });
   }
 
   /* ── tiny SVG helpers ─────────────────────────────────────────── */
@@ -57,7 +78,7 @@
 
   function svgText(parent, x, y, str, attrs) {
     var t = svgEl("text", Object.assign({
-      x: x, y: y, fill: COL.muted, "font-size": 10.5, "font-family": FONT
+      x: x, y: y, fill: COL().muted, "font-size": 11.5, "font-family": FONT
     }, attrs || {}), parent);
     t.textContent = str;
     return t;
@@ -142,7 +163,7 @@
       var isZero = Math.abs(v) < 1e-9 && opts.yMin < 0;
       svgEl("line", {
         x1: opts.pad.l, x2: opts.pad.l + opts.iw, y1: y, y2: y,
-        stroke: isZero ? COL.zero : COL.grid, "stroke-width": 1
+        stroke: isZero ? COL().zero : COL().grid, "stroke-width": 1
       }, svg);
       svgText(svg, opts.pad.l - 7, y + 3.5, (opts.format || fmtCompact)(v),
               { "text-anchor": "end" });
@@ -187,10 +208,10 @@
         var hRem = hTotal - hAdd;
         var rx = bw > 4 ? 2 : 0;
         if (hAdd > 0.2) {
-          svgEl("rect", { x: x, y: baseY - hAdd, width: bw, height: hAdd, fill: COL.added, rx: rx }, svg);
+          svgEl("rect", { x: x, y: baseY - hAdd, width: bw, height: hAdd, fill: COL().added, rx: rx }, svg);
         }
         if (hRem > 0.2) {
-          svgEl("rect", { x: x, y: baseY - hAdd - hRem, width: bw, height: hRem, fill: COL.removed, rx: rx }, svg);
+          svgEl("rect", { x: x, y: baseY - hAdd - hRem, width: bw, height: hRem, fill: COL().removed, rx: rx }, svg);
         }
         var g = svgEl("g", null, svg);
         svgEl("rect", { x: pad.l + slot * i, y: pad.t, width: slot, height: ih, fill: "transparent" }, g);
@@ -202,7 +223,7 @@
       points.forEach(function (p, i) {
         if (i % stride === 0 || i === n - 1) {
           svgText(svg, pad.l + slot * i + slot / 2, H - 8, bucketLabel(p.t, timeline.bucket),
-                  { "text-anchor": "middle", "font-size": 10 });
+                  { "text-anchor": "middle", "font-size": 11 });
         }
       });
     });
@@ -243,8 +264,8 @@
 
       var defs = svgEl("defs", null, svg);
       var grad = svgEl("linearGradient", { id: gid, x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
-      svgEl("stop", { offset: "0%", "stop-color": COL.accent, "stop-opacity": 0.35 }, grad);
-      svgEl("stop", { offset: "100%", "stop-color": COL.accent, "stop-opacity": 0.02 }, grad);
+      svgEl("stop", { offset: "0%", "stop-color": COL().accent, "stop-opacity": 0.35 }, grad);
+      svgEl("stop", { offset: "100%", "stop-color": COL().accent, "stop-opacity": 0.02 }, grad);
 
       var line = "";
       vals.forEach(function (v, i) {
@@ -255,11 +276,11 @@
            + " L" + xOf(0).toFixed(1) + " " + yOf(yMin).toFixed(1) + " Z",
         fill: "url(#" + gid + ")", stroke: "none"
       }, svg);
-      svgEl("path", { d: line, fill: "none", stroke: COL.accent, "stroke-width": 1.8 }, svg);
+      svgEl("path", { d: line, fill: "none", stroke: COL().accent, "stroke-width": 2.2 }, svg);
 
       if (points.length <= 90) {
         vals.forEach(function (v, i) {
-          svgEl("circle", { cx: xOf(i), cy: yOf(v), r: 2.2, fill: COL.accent }, svg);
+          svgEl("circle", { cx: xOf(i), cy: yOf(v), r: 2.6, fill: COL().accent }, svg);
         });
       }
 
@@ -275,13 +296,13 @@
       /* final cumulative value */
       var last = vals[vals.length - 1];
       svgText(svg, pad.l + iw, pad.t + 12, "net " + (last >= 0 ? "+" : "−") + fmtInt(Math.abs(last)),
-              { "text-anchor": "end", fill: last >= 0 ? COL.added : COL.removed, "font-size": 12, "font-weight": 600 });
+              { "text-anchor": "end", fill: last >= 0 ? COL().added : COL().removed, "font-size": 13, "font-weight": 600 });
 
       var stride = Math.max(1, Math.ceil(points.length / 8));
       points.forEach(function (p, i) {
         if (i % stride === 0 || i === points.length - 1) {
           svgText(svg, xOf(i), H - 7, bucketLabel(p.t, timeline.bucket),
-                  { "text-anchor": "middle", "font-size": 10 });
+                  { "text-anchor": "middle", "font-size": 11 });
         }
       });
     });
@@ -320,7 +341,7 @@
         if (h < 0.2) return;
         var x = pad.l + slot * i + (slot - bw) / 2;
         var g = svgEl("g", null, svg);
-        svgEl("rect", { x: x, y: baseY - h, width: bw, height: h, fill: COL.accent, rx: bw > 4 ? 2 : 0 }, g);
+        svgEl("rect", { x: x, y: baseY - h, width: bw, height: h, fill: COL().accent, rx: bw > 4 ? 2 : 0 }, g);
         svgTip(g, bucketLabel(p.t, timeline.bucket) + "  ·  +" + fmtInt(p.added)
           + " / −" + fmtInt(p.removed) + " lines");
       });
@@ -329,7 +350,7 @@
       points.forEach(function (p, i) {
         if (i % stride === 0 || i === n - 1) {
           svgText(svg, pad.l + slot * i + slot / 2, H - 4, bucketLabel(p.t, timeline.bucket),
-                  { "text-anchor": "middle", "font-size": 9 });
+                  { "text-anchor": "middle", "font-size": 10 });
         }
       });
     });
@@ -353,7 +374,7 @@
       var cx = size / 2, cy = size / 2;
       var circ = 2 * Math.PI * r;
 
-      svgEl("circle", { cx: cx, cy: cy, r: r, fill: "none", stroke: "#1b2430", "stroke-width": stroke }, svg);
+      svgEl("circle", { cx: cx, cy: cy, r: r, fill: "none", stroke: COL().track, "stroke-width": stroke }, svg);
 
       var acc = 0;
       slices.forEach(function (s) {
@@ -371,9 +392,9 @@
       });
 
       svgText(svg, cx, cy - 2, fmtCompact(total), {
-        "text-anchor": "middle", fill: "#e6edf3", "font-size": 17, "font-weight": 700
+        "text-anchor": "middle", fill: COL().text, "font-size": 18, "font-weight": 700
       });
-      svgText(svg, cx, cy + 14, "churn", { "text-anchor": "middle", "font-size": 10 });
+      svgText(svg, cx, cy + 14, "churn", { "text-anchor": "middle", "font-size": 11 });
 
       var legend = document.createElement("div");
       legend.className = "donut-legend";
@@ -413,6 +434,7 @@
     palette: palette,
     otherColor: OTHER_COLOR,
     redraw: redraw,
+    redrawAll: redrawAll,
     fmtInt: fmtInt,
     fmtCompact: fmtCompact
   };
