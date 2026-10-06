@@ -52,6 +52,9 @@ Click **＋ Add repository** in the top bar:
   The archive must contain the `.git` directory (the repository may be at the zip
   root or inside a single top-level folder). Zip-slip and symlink entries are
   rejected for safety.
+  Note: GitHub's "Download ZIP" produces a source snapshot *without* `.git`, so it
+  carries no history and cannot be analysed — clone the remote URL instead (or zip
+  your own clone, including the `.git` directory).
 
 Several repositories can be loaded at the same time; switch between them with the
 **Repository** dropdown. Use *delete* in the *Repository info* panel to remove one.
